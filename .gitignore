@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env*
+CLAUDE.md
+docs/
+src/_variants/
+test-results/
+playwright-report/
+.DS_Store
