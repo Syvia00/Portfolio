@@ -39,6 +39,9 @@ jobs:
     if: github.event_name == 'push'
     needs: checks
     runs-on: ubuntu-24.04
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
@@ -52,7 +55,7 @@ jobs:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       - name: Upload hashed assets, cached for a year
-        run: aws s3 sync dist/assets "s3://${{ vars.AWS_S3_BUCKET }}/assets" --delete --cache-control "public, max-age=31536000, immutable"
+        run: aws s3 sync dist/assets "s3://${{ vars.AWS_S3_BUCKET }}/assets" --cache-control "public, max-age=31536000, immutable"
       - name: Upload index.html and other files, always revalidated
         run: aws s3 sync dist "s3://${{ vars.AWS_S3_BUCKET }}" --delete --exclude "assets/*" --cache-control "no-cache"
       - run: aws cloudfront create-invalidation --distribution-id "${{ vars.AWS_CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*"
@@ -64,6 +67,11 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.65.0-noble
       options: --user 1001
     steps:
+      - name: Check SITE_URL is set
+        if: vars.SITE_URL == ''
+        run: |
+          echo "::error::Repository variable SITE_URL is empty. Set it under Settings → Secrets and variables → Actions → Variables."
+          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: npm ci
       - run: npx playwright test --grep @smoke --project=chromium
