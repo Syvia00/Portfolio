@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = "http://localhost:4173";
+const siteUrl = process.env.SITE_URL;
+const baseURL = siteUrl ?? "http://localhost:4173";
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -14,8 +15,11 @@ export default defineConfig({
     { name: "firefox", use: { ...devices["Desktop Firefox"] } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
-  webServer: {
-    command: "npm run build && npm run preview -- --port 4173 --strictPort",
-    url: baseURL,
-  },
+  // With SITE_URL set (smoke test after deploy), tests run against the live site and no local server starts.
+  webServer: siteUrl
+    ? undefined
+    : {
+        command: "npm run build && npm run preview -- --port 4173 --strictPort",
+        url: baseURL,
+      },
 });
