@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
-    "test:e2e": "playwright test --grep-invert @visual",
+    "test:e2e": "playwright test --grep-invert \"@visual|@smoke\"",
     "test:visual": "docker run --rm --ipc=host -v \"$PWD\":/work -v /work/node_modules -w /work mcr.microsoft.com/playwright:v1.65.0-noble /bin/sh -c \"npm ci && npx playwright test --grep @visual --pass-with-no-tests\""
   },
   "dependencies": {

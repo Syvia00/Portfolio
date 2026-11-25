@@ -1,0 +1,71 @@
+name: Deploy
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-2
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      # Firefox refuses to start as root with GitHub's HOME, so run as the runner's user.
+      options: --user 1001
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+      - run: npm run test:e2e
+      # Already inside the pinned image, so run the screenshot tests directly instead of `npm run test:visual`.
+      - run: npx playwright test --grep @visual --pass-with-no-tests
+      - if: github.event_name == 'push'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+
+  deploy:
+    if: github.event_name == 'push'
+    needs: checks
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Upload hashed assets, cached for a year
+        run: aws s3 sync dist/assets "s3://${{ vars.AWS_S3_BUCKET }}/assets" --delete --cache-control "public, max-age=31536000, immutable"
+      - name: Upload index.html and other files, always revalidated
+        run: aws s3 sync dist "s3://${{ vars.AWS_S3_BUCKET }}" --delete --exclude "assets/*" --cache-control "no-cache"
+      - run: aws cloudfront create-invalidation --distribution-id "${{ vars.AWS_CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*"
+
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      options: --user 1001
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: npm ci
+      - run: npx playwright test --grep @smoke --project=chromium
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}

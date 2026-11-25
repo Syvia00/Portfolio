@@ -1,0 +1,8 @@
+function handler(event) {
+  const response = event.response;
+  response.headers["content-security-policy"] = {
+    value:
+      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests",
+  };
+  return response;
+}
