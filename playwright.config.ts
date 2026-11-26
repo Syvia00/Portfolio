@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const siteUrl = process.env.SITE_URL;
-const baseURL = siteUrl ?? "http://localhost:4173";
+const baseURL = siteUrl || "http://localhost:4173";
 
 export default defineConfig({
   testDir: "tests/e2e",
